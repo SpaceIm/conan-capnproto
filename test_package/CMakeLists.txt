@@ -36,9 +36,11 @@ function(target_capn_schemas TARGET)
       get_filename_component(FILE_DIR "${FILE_ABS_PATH}" PATH)
       add_custom_command(
         OUTPUT ${SOURCE_FILE}
-        COMMAND ${CMAKE_COMMAND}
-        ARGS -E make_directory ${CAPNPC_OUTPUT_DIR}
-        COMMAND ${CAPNP_EXE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CAPNPC_OUTPUT_DIR}
+        COMMAND ${CMAKE_COMMAND} -E env
+                LD_LIBRARY_PATH=${CONAN_LIB_DIRS_CAPNPROTO}:$ENV{LD_LIBRARY_PATH}
+                DYLD_LIBRARY_PATH=${CONAN_LIB_DIRS_CAPNPROTO}:$ENV{DYLD_LIBRARY_PATH}
+                ${CAPNP_EXE}
         ARGS compile
              -I ${CONAN_INCLUDE_DIRS_CAPNPROTO} # mandatory if .capnp set a Namespace !
              --no-standard-import
