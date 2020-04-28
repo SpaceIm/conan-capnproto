@@ -52,7 +52,9 @@ class CapnprotoConan(ConanFile):
             tools.check_min_cppstd(self, 14)
         mininum_compiler_version = self._minimum_compilers_version.get(str(self.settings.compiler))
         if mininum_compiler_version and tools.Version(self.settings.compiler.version) < mininum_compiler_version:
-            raise ConanInvalidConfiguration("Compiler is too old for C++14")
+            raise ConanInvalidConfiguration("Cap'n Proto doesn't support {0} {1}".format(self.settings.compiler, self.settings.compiler.version))
+        if self.settings.compiler == "Visual Studio" and self.options.shared:
+            raise ConanInvalidConfiguration("Cap'n Proto doesn't support shared libraries for Visual Studio")
 
     def requirements(self):
         if not self.options.lite:
