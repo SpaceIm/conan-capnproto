@@ -6,16 +6,23 @@ set(CMAKE_VERBOSE_MAKEFILE TRUE)
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
-if(NOT CAPNP_EXE)
-  find_program(CAPNP_EXE NAMES capnp)
-  if(NOT CAPNP_EXE)
-    message(FATAL_ERROR "capnp not found!")
-  endif()
-endif()
-
-function(target_capn_sources TARGET)
+function(target_capn_schemas TARGET)
   if(NOT ARGN)
     message(SEND_ERROR "target_capn_sources() called without any source files.")
+  endif()
+
+  if(NOT CAPNP_EXE)
+    find_program(CAPNP_EXE NAMES capnp)
+    if(NOT CAPNP_EXE)
+      message(FATAL_ERROR "capnp not found!")
+    endif()
+  endif()
+
+  if(NOT CAPNP_CXX_EXE)
+    find_program(CAPNP_CXX_EXE NAMES capnpc-c++)
+    if(NOT CAPNP_CXX_EXE)
+      message(FATAL_ERROR "capnpc-c++ not found!")
+    endif()
   endif()
 
   foreach(SCHEMA_FILE ${ARGN})
@@ -35,7 +42,7 @@ function(target_capn_sources TARGET)
         ARGS compile
              -I ${CONAN_INCLUDE_DIRS_CAPNPROTO} # mandatory if .capnp set a Namespace !
              --no-standard-import
-             -oc++:${CAPNPC_OUTPUT_DIR}
+             -o ${CAPNP_CXX_EXE}:${CAPNPC_OUTPUT_DIR}
              --src-prefix ${FILE_DIR}
              ${FILE_ABS_PATH}
         DEPENDS ${FILE_ABS_PATH}
@@ -51,18 +58,18 @@ function(target_capn_sources TARGET)
 endfunction()
 
 add_executable(addressbook addressbook.c++)
-target_capn_sources(addressbook addressbook.capnp)
+target_capn_schemas(addressbook addressbook.capnp)
 target_link_libraries(addressbook ${CONAN_LIBS})
 set_property(TARGET addressbook PROPERTY CXX_STANDARD 14)
 
 if(NOT CAPNP_LITE)
   add_executable(calculator-client calculator-client.c++)
-  target_capn_sources(calculator-client calculator.capnp)
+  target_capn_schemas(calculator-client calculator.capnp)
   target_link_libraries(calculator-client ${CONAN_LIBS})
   set_property(TARGET calculator-client PROPERTY CXX_STANDARD 14)
 
   add_executable(calculator-server calculator-server.c++)
-  target_capn_sources(calculator-server calculator.capnp)
+  target_capn_schemas(calculator-server calculator.capnp)
   target_link_libraries(calculator-server ${CONAN_LIBS})
   set_property(TARGET calculator-server PROPERTY CXX_STANDARD 14)
 endif()
