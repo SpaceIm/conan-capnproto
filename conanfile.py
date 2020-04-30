@@ -1,6 +1,6 @@
 import os
 
-from conans import ConanFile, CMake, tools
+from conans import ConanFile, AutoToolsBuildEnvironment, CMake, tools
 from conans.errors import ConanInvalidConfiguration
 
 class CapnprotoConan(ConanFile):
@@ -24,6 +24,7 @@ class CapnprotoConan(ConanFile):
         "lite": False
     }
 
+    _autotools = None
     _cmake = None
 
     @property
@@ -58,15 +59,20 @@ class CapnprotoConan(ConanFile):
 
     def requirements(self):
         if not self.options.lite:
-            self.requires.add("zlib/1.2.11")
+            self.requires("openssl/1.1.1g")
+            self.requires("zlib/1.2.11")
 
     def source(self):
         tools.get(**self.conan_data["sources"][self.version])
         os.rename(self.name + "-" + self.version, self._source_subfolder)
 
     def build(self):
-        cmake = self._configure_cmake()
-        cmake.build()
+        if self.settings.os == "Windows":
+            cmake = self._configure_cmake()
+            cmake.build()
+        else:
+            autotools = self._configure_autotools()
+            autotools.make()
 
     def _configure_cmake(self):
         if self._cmake:
@@ -78,10 +84,29 @@ class CapnprotoConan(ConanFile):
         self._cmake.configure(build_folder=self._build_subfolder)
         return self._cmake
 
+    def _configure_autotools(self):
+        if self._autotools:
+            return self._autotools
+        conf_args = [
+            "--{}-shared".format("enable" if self.options.shared else "disable"),
+            "--{}-static".format("disable" if self.options.shared else "enable"),
+            "--with-external-capnp=no",
+            "--with-zlib={}".format("no" if self.options.lite else "yes"),
+            "--with-openssl={}".format("no" if self.options.lite else "yes"),
+            "--disable-reflection={}".format("yes" if self.options.lite else "no")
+        ]
+        self._autotools = AutoToolsBuildEnvironment(self, win_bash=tools.os_info.is_windows)
+        self._autotools.configure(configure_dir=self._source_subfolder, args=conf_args)
+        return self._autotools
+
     def package(self):
         self.copy("LICENSE", dst="licenses", src=self._source_subfolder)
-        cmake = self._configure_cmake()
-        cmake.install()
+        if self.settings.os == "Windows":
+            cmake = self._configure_cmake()
+            cmake.install()
+        else:
+            autotools = self._configure_autotools()
+            autotools.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
         tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
 
@@ -98,9 +123,9 @@ class CapnprotoConan(ConanFile):
     def _get_ordered_libs(self):
         libs = []
         if not self.options.lite:
-            # kj-async is a dependency of capnp-rpc, capnp-json, kj-http and kj-gzip
-            libs.extend(["capnp-rpc", "capnp-json", "kj-http", "kj-gzip", "kj-async", "capnpc"])
+            # kj-async is a dependency of capnp-rpc, capnp-json, kj-http, kj-gzip and kj-tls
+            libs.extend(["capnp-rpc", "capnp-json", "kj-http", "kj-gzip", "kj-tls", "kj-async", "capnpc"])
         # - capnp is a dependency of capnp-rpc and capnp-json
-        # - kj is a dependency of capnp-rpc, capnp-json, kj-http, kj-gzip, kj-async, capnpc and capnp
+        # - kj is a dependency of capnp-rpc, capnp-json, kj-http, kj-gzip, kj-tls, kj-async, capnpc and capnp
         libs.extend(["capnp", "kj"])
         return libs
