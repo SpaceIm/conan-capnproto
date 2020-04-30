@@ -97,7 +97,7 @@ class CapnprotoConan(ConanFile):
             conf_args.extend(["--disable-reflection", "--with-external-capnp"])
         else:
             conf_args.extend(["--with-openssl", "--with-zlib"])
-        self._autotools.configure(configure_dir=self._source_subfolder, args=conf_args)
+        self._autotools.configure(configure_dir=os.path.join(self._source_subfolder, "c++"), args=conf_args)
         return self._autotools
 
     def package(self):
