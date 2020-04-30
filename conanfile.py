@@ -94,7 +94,7 @@ class CapnprotoConan(ConanFile):
             "--enable-shared" if self.options.shared else "--disable-shared",
             "--disable-static" if self.options.shared else "--enable-static",
             "--disable-reflection" if self.options.lite else "--enable-reflection",
-            "--with-external-capnp" if self.options.lite else "--without-external-capnp",
+            "--with-external-capnp={}".format("yes" if self.options.lite else "no"),
             "--with-openssl" if self.options.get_safe("with_openssl") else "--without-openssl",
             "--with-zlib" if self.options.get_safe("with_zlib") else "--without-zlib"
         ]
