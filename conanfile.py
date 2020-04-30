@@ -87,15 +87,16 @@ class CapnprotoConan(ConanFile):
     def _configure_autotools(self):
         if self._autotools:
             return self._autotools
-        conf_args = [
-            "--{}-shared".format("enable" if self.options.shared else "disable"),
-            "--{}-static".format("disable" if self.options.shared else "enable"),
-            "--with-external-capnp=no",
-            "--with-zlib={}".format("no" if self.options.lite else "yes"),
-            "--with-openssl={}".format("no" if self.options.lite else "yes"),
-            "--disable-reflection={}".format("yes" if self.options.lite else "no")
-        ]
         self._autotools = AutoToolsBuildEnvironment(self, win_bash=tools.os_info.is_windows)
+        conf_args = []
+        if self.options.shared:
+            conf_args.extend(["--enable-shared", "--disable-static"])
+        else:
+            conf_args.extend(["--enable-static", "--disable-shared"])
+        if self.options.lite:
+            conf_args.extend(["--disable-reflection", "--with-external-capnp"])
+        else:
+            conf_args.extend(["--with-openssl", "--with-zlib"])
         self._autotools.configure(configure_dir=self._source_subfolder, args=conf_args)
         return self._autotools
 
