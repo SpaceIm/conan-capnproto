@@ -43,8 +43,8 @@ class CapnprotoConan(ConanFile):
         return {
             "Visual Studio": "15",
             "gcc": "5",
-            "clang": "5",
-            "apple-clang": "4.3",
+            "clang": "3.4",
+            "apple-clang": "5.1",
         }
 
     def config_options(self):
@@ -57,9 +57,11 @@ class CapnprotoConan(ConanFile):
             del self.options.fPIC
         if self.settings.compiler.cppstd:
             tools.check_min_cppstd(self, 14)
-        mininum_compiler_version = self._minimum_compilers_version.get(str(self.settings.compiler))
-        if mininum_compiler_version and tools.Version(self.settings.compiler.version) < mininum_compiler_version:
-            raise ConanInvalidConfiguration("Cap'n Proto doesn't support {0} {1}".format(self.settings.compiler, self.settings.compiler.version))
+        minimum_version = self._minimum_compilers_version.get(str(self.settings.compiler), False)
+        if not minimum_version:
+            self.output.warn("Cap'n Proto requires C++14. Your compiler is unknown. Assuming it supports C++14.")
+        elif tools.Version(self.settings.compiler.version) < minimum_version:
+            raise ConanInvalidConfiguration("Cap'n Proto requires C++14, which your compiler does not support.")
         if self.settings.compiler == "Visual Studio" and self.options.shared:
             raise ConanInvalidConfiguration("Cap'n Proto doesn't support shared libraries for Visual Studio")
 
@@ -127,10 +129,18 @@ class CapnprotoConan(ConanFile):
             autotools.install()
             for la_file in glob.glob(os.path.join(self.package_folder, "lib", "*.la")):
                 os.remove(la_file)
-        for cmake_file in glob.glob(os.path.join(self.package_folder, self._cmake_folder, "*")):
-            if os.path.basename(cmake_file) not in ["CapnProtoMacros.cmake", "CapnProtoTargets.cmake"]:
-                os.remove(cmake_file)
         tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
+        for cmake_file in glob.glob(os.path.join(self.package_folder, self._cmake_folder, "*")):
+            if os.path.basename(cmake_file) != "CapnProtoMacros.cmake":
+                os.remove(cmake_file)
+        # inject mandatory variables so that CAPNP_GENERATE_CPP function can
+        # work in a robust way (build from source or from pre build package)
+        tools.replace_in_file(os.path.join(self.package_folder, self._cmake_folder, "CapnProtoMacros.cmake"),
+                              "function(CAPNP_GENERATE_CPP SOURCES HEADERS)",
+                              """set(CAPNP_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/../../../bin/capnp${CMAKE_EXECUTABLE_SUFFIX}")
+set(CAPNPC_CXX_EXECUTABLE "${CMAKE_CURRENT_LIST_DIR}/../../../bin/capnpc-c++${CMAKE_EXECUTABLE_SUFFIX}")
+set(CAPNP_INCLUDE_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/../../../include")
+function(CAPNP_GENERATE_CPP SOURCES HEADERS)""")
 
     def package_info(self):
         self.cpp_info.names["cmake_find_package"] = "CapnProto"
@@ -158,10 +168,7 @@ class CapnprotoConan(ConanFile):
         elif self.settings.os == "Windows":
             self.cpp_info.components["kj-async"].system_libs = ["ws2_32"]
         self.cpp_info.components["kj"].builddirs = self._cmake_folder
-        self.cpp_info.components["kj"].build_modules = [
-            os.path.join(self._cmake_folder, "CapnProtoMacros.cmake"),
-            os.path.join(self._cmake_folder, "CapnProtoTargets.cmake")
-        ]
+        self.cpp_info.components["kj"].build_modules = [os.path.join(self._cmake_folder, "CapnProtoMacros.cmake")]
 
         bin_path = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH env var with: {}".format(bin_path))
