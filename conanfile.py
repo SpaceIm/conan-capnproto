@@ -164,6 +164,7 @@ function(CAPNP_GENERATE_CPP SOURCES HEADERS)""")
             self._register_component(component)
 
         if self.settings.os == "Linux":
+            self.cpp_info.components["capnpc"].system_libs = ["pthread"]
             self.cpp_info.components["kj"].system_libs = ["pthread"]
             self.cpp_info.components["kj-async"].system_libs = ["pthread"]
         elif self.settings.os == "Windows":
