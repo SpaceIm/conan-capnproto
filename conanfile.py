@@ -150,6 +150,7 @@ function(CAPNP_GENERATE_CPP SOURCES HEADERS)""")
             {"name": "capnp", "requires": ["kj"]},
             {"name": "capnp-json", "requires": ["capnp", "kj"]},
             {"name": "capnp-rpc", "requires": ["capnp", "kj", "kj-async"]},
+            {"name": "capnpc", "requires": ["capnp", "kj"]},
             {"name": "kj", "requires": []},
             {"name": "kj-async", "requires": ["kj"]},
             {"name": "kj-http", "requires": ["kj", "kj-async"]},
