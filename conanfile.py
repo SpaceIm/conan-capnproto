@@ -11,7 +11,7 @@ class CapnprotoConan(ConanFile):
     topics = ("conan", "capnproto", "serialization", "rpc")
     homepage = "https://capnproto.org"
     url = "https://github.com/conan-io/conan-center-index"
-    exports_sources = ("CMakeLists.txt", "patches/*")
+    exports_sources = ("CMakeLists.txt", "patches/**")
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
     options = {
@@ -50,7 +50,7 @@ class CapnprotoConan(ConanFile):
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
-            del self.options.openssl
+            del self.options.with_openssl
 
     def configure(self):
         if self.options.shared:
@@ -90,14 +90,13 @@ class CapnprotoConan(ConanFile):
     def _configure_autotools(self):
         if self._autotools:
             return self._autotools
-        args = []
-        if self.options.shared:
-            args.extend(["--disable-static", "--enable-shared"])
-        else:
-            args.extend(["--disable-shared", "--enable-static"])
-        args.append("--with-openssl" if self.options.with_openssl else "--without-openssl")
-        args.append("--with-zlib" if self.options.with_zlib else "--without-zlib")
-        args.append("--enable-reflection")
+        args = [
+            "--enable-shared" if self.options.shared else "--disable-shared",
+            "--disable-static" if self.options.shared else "--enable-static",
+            "--with-openssl" if self.options.with_openssl else "--without-openssl",
+            "--with-zlib" if self.options.with_zlib else "--without-zlib",
+            "--enable-reflection"
+        ]
         self._autotools = AutoToolsBuildEnvironment(self)
         self._autotools.configure(args=args, configure_dir=os.path.join(self._source_subfolder, "c++"))
         return self._autotools
@@ -136,65 +135,42 @@ class CapnprotoConan(ConanFile):
     def package_info(self):
         self.cpp_info.names["cmake_find_package"] = "CapnProto"
         self.cpp_info.names["cmake_find_package_multi"] = "CapnProto"
-        # capnp
-        self.cpp_info.components["capnp"].names["cmake_find_package"] = "capnp"
-        self.cpp_info.components["capnp"].names["cmake_find_package_multi"] = "capnp"
-        self.cpp_info.components["capnp"].names["pkg_config"] = "capnp"
-        self.cpp_info.components["capnp"].libs = ["capnp"]
-        self.cpp_info.components["capnp"].requires = ["kj"]
-        # capnp-json
-        self.cpp_info.components["capnp-json"].names["cmake_find_package"] = "capnp-json"
-        self.cpp_info.components["capnp-json"].names["cmake_find_package_multi"] = "capnp-json"
-        self.cpp_info.components["capnp-json"].names["pkg_config"] = "capnp-json"
-        self.cpp_info.components["capnp-json"].libs = ["capnp-json"]
-        self.cpp_info.components["capnp-json"].requires = ["capnp", "kj"]
-        # capnp-rpc
-        self.cpp_info.components["capnp-rpc"].names["cmake_find_package"] = "capnp-rpc"
-        self.cpp_info.components["capnp-rpc"].names["cmake_find_package_multi"] = "capnp-rpc"
-        self.cpp_info.components["capnp-rpc"].names["pkg_config"] = "capnp-rpc"
-        self.cpp_info.components["capnp-rpc"].libs = ["capnp-rpc"]
-        self.cpp_info.components["capnp-rpc"].requires = ["capnp", "kj", "kj-async"]
-        # kj
-        self.cpp_info.components["kj"].names["cmake_find_package"] = "kj"
-        self.cpp_info.components["kj"].names["cmake_find_package_multi"] = "kj"
-        self.cpp_info.components["kj"].names["pkg_config"] = "kj"
-        self.cpp_info.components["kj"].libs = ["kj"]
+
+        components = [
+            {"name": "capnp", "requires": ["kj"]},
+            {"name": "capnp-json", "requires": ["capnp", "kj"]},
+            {"name": "capnp-rpc", "requires": ["capnp", "kj", "kj-async"]},
+            {"name": "kj", "requires": []},
+            {"name": "kj-async", "requires": ["kj"]},
+            {"name": "kj-http", "requires": ["kj", "kj-async"]},
+        ]
+        if self.options.with_zlib:
+            components.append({"name": "kj-gzip", "requires": ["kj", "kj-async", "zlib::zlib"]})
+        if self.options.get_safe("with_openssl"):
+            components.append({"name": "kj-tls", "requires": ["kj", "kj-async", "openssl::openssl"]})
+
+        for component in components:
+            self._register_component(component)
+
         if self.settings.os == "Linux":
             self.cpp_info.components["kj"].system_libs = ["pthread"]
-        self.cpp_info.components["kj"].builddirs = self._cmake_folder
-        self.cpp_info.components["kj"].build_modules = [os.path.join(self._cmake_folder, "CapnProtoMacros.cmake"),
-                                                        os.path.join(self._cmake_folder, "CapnProtoTargets.cmake")]
-        # kj-async
-        self.cpp_info.components["kj-async"].names["cmake_find_package"] = "kj-async"
-        self.cpp_info.components["kj-async"].names["cmake_find_package_multi"] = "kj-async"
-        self.cpp_info.components["kj-async"].names["pkg_config"] = "kj-async"
-        self.cpp_info.components["kj-async"].libs = ["kj-async"]
-        if self.settings.os == "Linux":
             self.cpp_info.components["kj-async"].system_libs = ["pthread"]
         elif self.settings.os == "Windows":
             self.cpp_info.components["kj-async"].system_libs = ["ws2_32"]
-        self.cpp_info.components["kj-async"].requires = ["kj"]
-        # kj-http
-        self.cpp_info.components["kj-http"].names["cmake_find_package"] = "kj-http"
-        self.cpp_info.components["kj-http"].names["cmake_find_package_multi"] = "kj-http"
-        self.cpp_info.components["kj-http"].names["pkg_config"] = "kj-http"
-        self.cpp_info.components["kj-http"].libs = ["kj-http"]
-        self.cpp_info.components["kj-http"].requires = ["kj", "kj-async"]
-        # kj-gzip
-        if self.options.with_zlib:
-            self.cpp_info.components["kj-gzip"].names["cmake_find_package"] = "kj-gzip"
-            self.cpp_info.components["kj-gzip"].names["cmake_find_package_multi"] = "kj-gzip"
-            self.cpp_info.components["kj-gzip"].names["pkg_config"] = "kj-gzip"
-            self.cpp_info.components["kj-gzip"].libs = ["kj-gzip"]
-            self.cpp_info.components["kj-gzip"].requires = ["kj", "kj-async", "zlib::zlib"]
-        # kj-tls
-        if self.options.get_safe("with_openssl"):
-            self.cpp_info.components["kj-tls"].names["cmake_find_package"] = "kj-tls"
-            self.cpp_info.components["kj-tls"].names["cmake_find_package_multi"] = "kj-tls"
-            self.cpp_info.components["kj-tls"].names["pkg_config"] = "kj-tls"
-            self.cpp_info.components["kj-tls"].libs = ["kj-tls"]
-            self.cpp_info.components["kj-tls"].requires = ["kj", "kj-async", "openssl::openssl"]
+        self.cpp_info.components["kj"].builddirs = self._cmake_folder
+        self.cpp_info.components["kj"].build_modules = [
+            os.path.join(self._cmake_folder, "CapnProtoMacros.cmake"),
+            os.path.join(self._cmake_folder, "CapnProtoTargets.cmake")
+        ]
 
         bin_path = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH env var with: {}".format(bin_path))
         self.env_info.PATH.append(bin_path)
+
+    def _register_component(self, component):
+        name = component["name"]
+        self.cpp_info.components[name].names["cmake_find_package"] = name
+        self.cpp_info.components[name].names["cmake_find_package_multi"] = name
+        self.cpp_info.components[name].names["pkg_config"] = name
+        self.cpp_info.components[name].libs = [name]
+        self.cpp_info.components[name].requires = component["requires"]
