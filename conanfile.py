@@ -85,7 +85,7 @@ class CapnprotoConan(ConanFile):
         self._cmake.definitions["BUILD_TESTING"] = False
         self._cmake.definitions["EXTERNAL_CAPNP"] = False
         self._cmake.definitions["CAPNP_LITE"] = False
-        self._cmake.definitions["WITH_OPENSSL"] = "ON" if self.options.with_openssl else "OFF"
+        self._cmake.definitions["WITH_OPENSSL"] = self.options.with_openssl
         self._cmake.configure(build_folder=self._build_subfolder)
         return self._cmake
 
