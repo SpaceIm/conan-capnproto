@@ -41,7 +41,7 @@ class CapnprotoConan(ConanFile):
     @property
     def _minimum_compilers_version(self):
         return {
-            "Visual Studio": "15",
+            "Visual Studio": "14",
             "gcc": "5",
             "clang": "5",
             "apple-clang": "5.1",
